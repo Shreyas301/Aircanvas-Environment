@@ -5,16 +5,15 @@ import numpy as np
 import mediapipe as mp
 from collections import deque
 from controller import Controller
-
 from math import hypot
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 tkWindow = Tk()  
-tkWindow.geometry('400x150')  
+tkWindow.geometry('500x500')  
 tkWindow.title('Control Panel')
-
+tkWindow.configure(bg='#1D77AE')
 
 
 def showMsg():  
@@ -24,19 +23,16 @@ def showMsg():
     ypoints = [deque(maxlen=1024)]
 
 
-    # These indexes will be used to mark the points in particular arrays of specific colour
     blue_index = 0
     green_index = 0
     red_index = 0
     yellow_index = 0
 
-    #The kernel to be used for dilation purpose 
     kernel = np.ones((5,5),np.uint8)
 
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
     colorIndex = 0
 
-    # Here is code for Canvas setup
     paintWindow = np.zeros((471,636,3)) + 255
     paintWindow = cv2.rectangle(paintWindow, (40,1), (140,65), (0,0,0), 2)
     paintWindow = cv2.rectangle(paintWindow, (160,1), (255,65), (255,0,0), 2)
@@ -52,24 +48,20 @@ def showMsg():
     cv2.namedWindow('Paint', cv2.WINDOW_AUTOSIZE)
 
 
-    # initialize mediapipe
     mpHands = mp.solutions.hands
     hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
     mpDraw = mp.solutions.drawing_utils
 
 
-    # Initialize the webcam
+
     cap = cv2.VideoCapture(0)
     ret = True
     while ret:
-        # Read each frame from the webcam
         ret, frame = cap.read()
 
         x, y, c = frame.shape
 
-        # Flip the frame vertically
         frame = cv2.flip(frame, 1)
-        #hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         frame = cv2.rectangle(frame, (40,1), (140,65), (0,0,0), 2)
@@ -82,26 +74,19 @@ def showMsg():
         cv2.putText(frame, "GREEN", (298, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
         cv2.putText(frame, "RED", (420, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
         cv2.putText(frame, "YELLOW", (520, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-        #frame = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
-        # Get hand landmark prediction
         result = hands.process(framergb)
 
-        # post process the result
         if result.multi_hand_landmarks:
             landmarks = []
             for handslms in result.multi_hand_landmarks:
                 for lm in handslms.landmark:
-                    # # print(id, lm)
-                    # print(lm.x)
-                    # print(lm.y)
                     lmx = int(lm.x * 640)
                     lmy = int(lm.y * 480)
 
                     landmarks.append([lmx, lmy])
 
 
-                # Drawing landmarks on frames
                 mpDraw.draw_landmarks(frame, handslms, mpHands.HAND_CONNECTIONS)
             fore_finger = (landmarks[8][0],landmarks[8][1])
             center = fore_finger
@@ -119,7 +104,7 @@ def showMsg():
                 yellow_index += 1
 
             elif center[1] <= 65:
-                if 40 <= center[0] <= 140: # Clear Button
+                if 40 <= center[0] <= 140: 
                     bpoints = [deque(maxlen=512)]
                     gpoints = [deque(maxlen=512)]
                     rpoints = [deque(maxlen=512)]
@@ -132,13 +117,13 @@ def showMsg():
 
                     paintWindow[67:,:,:] = 255
                 elif 160 <= center[0] <= 255:
-                        colorIndex = 0 # Blue
+                        colorIndex = 0 
                 elif 275 <= center[0] <= 370:
-                        colorIndex = 1 # Green
+                        colorIndex = 1 
                 elif 390 <= center[0] <= 485:
-                        colorIndex = 2 # Red
+                        colorIndex = 2 
                 elif 505 <= center[0] <= 600:
-                        colorIndex = 3 # Yellow
+                        colorIndex = 3 
             else :
                 if colorIndex == 0:
                     bpoints[blue_index].appendleft(center)
@@ -148,7 +133,6 @@ def showMsg():
                     rpoints[red_index].appendleft(center)
                 elif colorIndex == 3:
                     ypoints[yellow_index].appendleft(center)
-        # Append the next deques when nothing is detected to avois messing up
         else:
             bpoints.append(deque(maxlen=512))
             blue_index += 1
@@ -159,13 +143,8 @@ def showMsg():
             ypoints.append(deque(maxlen=512))
             yellow_index += 1
 
-        # Draw lines of all the colors on the canvas and frame
         points = [bpoints, gpoints, rpoints, ypoints]
-        # for j in range(len(points[0])):
-        #         for k in range(1, len(points[0][j])):
-        #             if points[0][j][k - 1] is None or points[0][j][k] is None:
-        #                 continue
-        #             cv2.line(paintWindow, points[0][j][k - 1], points[0][j][k], colors[0], 2)
+        
         for i in range(len(points)):
             for j in range(len(points[i])):
                 for k in range(1, len(points[i][j])):
@@ -180,9 +159,9 @@ def showMsg():
         if cv2.waitKey(1) == ord('q'):
             break
 
-    # release the webcam and destroy all active windows
     cap.release()
     cv2.destroyAllWindows()
+
 
 def showVol():
     cap = cv2.VideoCapture(0)
@@ -191,47 +170,74 @@ def showVol():
     hands = mpHands.Hands()
     mpDraw = mp.solutions.drawing_utils
 
-
     devices = AudioUtilities.GetSpeakers()
     interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-    volMin,volMax = volume.GetVolumeRange()[:2]
+    volMin, volMax = volume.GetVolumeRange()[:2]
+
+    last_vol = volMin  # Initialize last volume to the minimum volume level
+    volume_locked = False  # Initialize volume lock state
 
     while True:
-        success,img = cap.read()
-        imgRGB = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+        success, img = cap.read()
+        if not success:
+            print("Failed to capture image.")
+            break
+
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = hands.process(imgRGB)
 
         lmList = []
         if results.multi_hand_landmarks:
             for handlandmark in results.multi_hand_landmarks:
-                for id,lm in enumerate(handlandmark.landmark):
-                    h,w,_ = img.shape
-                    cx,cy = int(lm.x*w),int(lm.y*h)
-                    lmList.append([id,cx,cy]) 
-                mpDraw.draw_landmarks(img,handlandmark,mpHands.HAND_CONNECTIONS)
+                for id, lm in enumerate(handlandmark.landmark):
+                    h, w, _ = img.shape
+                    cx, cy = int(lm.x * w), int(lm.y * h)
+                    lmList.append([id, cx, cy]) 
+                mpDraw.draw_landmarks(img, handlandmark, mpHands.HAND_CONNECTIONS)
     
-        if lmList != []:
-            x1,y1 = lmList[4][1],lmList[4][2]
-            x2,y2 = lmList[8][1],lmList[8][2]
+        if lmList:
+            x1, y1 = lmList[4][1], lmList[4][2]
+            x2, y2 = lmList[8][1], lmList[8][2]
 
-            cv2.circle(img,(x1,y1),4,(255,0,0),cv2.FILLED)
-            cv2.circle(img,(x2,y2),4,(255,0,0),cv2.FILLED)
-            cv2.line(img,(x1,y1),(x2,y2),(255,0,0),3)
+            cv2.circle(img, (x1, y1), 4, (255, 0, 0), cv2.FILLED)
+            cv2.circle(img, (x2, y2), 4, (255, 0, 0), cv2.FILLED)
+            cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 3)
 
-            length = hypot(x2-x1,y2-y1)
+            length = hypot(x2 - x1, y2 - y1)
 
-            vol = np.interp(length,[15,220],[volMin,volMax])
-            print(vol,length)
-            volume.SetMasterVolumeLevel(vol, None)
-
-        # Hand range 15 - 220
-        # Volume range -63.5 - 0.0
+            if not volume_locked:  # Adjust volume only if it's not locked
+                vol = np.interp(length, [15, 220], [volMin, volMax])
+                last_vol = vol  # Update last volume to the current volume set by hand gesture
+                print(vol, length)
+            else:
+                vol = last_vol  # If volume is locked, maintain the last volume
+            
+        else:
+            vol = last_vol  # Set the volume to the last volume set by hand gesture when no hand is detected
         
-        cv2.imshow('Image',img)
-        if cv2.waitKey(1) & 0xff==ord('q'):
+        try:
+            volume.SetMasterVolumeLevel(vol, None)
+        except Exception as e:
+            print("Error setting volume:", e)
+        
+        cv2.putText(img, "Volume Locked" if volume_locked else "Volume Unlocked", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+        cv2.imshow('Image', img)
+        key = cv2.waitKey(1) & 0xff
+        if key == ord('q'):
             break
+        elif key == ord('l'):  # Toggle volume lock on 'l' key press
+            volume_locked = not volume_locked
+
+    # Release the camera and close OpenCV windows
+    cap.release()
+    cv2.destroyAllWindows()
+
+showVol()
+
 
 def showclose():
         cv2.destroyAllWindows()
@@ -263,28 +269,30 @@ def showcursor():
             Controller.detect_dragging()
 
         cv2.imshow('Hand Tracker', img)
-        if cv2.waitKey(5) & 0xff == 27:
+        if cv2.waitKey(1) & 0xff == ord('q'):
             break
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 button = Button(tkWindow,
 	text = 'Open Aircanvas',
-	command = showMsg, activebackground='yellow')  
+	command = showMsg, bg = '#FBCDC5', activebackground='#E71D1D', font="Arial")  
 button.pack()  
 
 button2 = Button(tkWindow,
 	text = 'Open Airvolume',
-	command = showVol, activebackground='yellow')  
+	command = showVol, bg = '#F9D1F8', activebackground='#D96BE7', font="Arial")  
 button2.pack()  
 
 button3 = Button(tkWindow,
 	text = 'Open Aircursor',
-	command = showcursor, bg='yellow')  
+	command = showcursor, bg='#F1F6AD', font="Arial")  
 button3.pack() 
 
 button4 = Button(tkWindow,
 	text = 'Close all windows',
-	command = showclose, bg='red')  
+	command = showclose, bg='red', font="Arial")  
 button4.pack() 
 
 
